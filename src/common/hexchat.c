@@ -540,8 +540,6 @@ new_ircwindow (server *serv, char *name, int type, int focus)
 	irc_init (sess);
 	chanopt_load (sess);
 	scrollback_load (sess);
-	if (sess->scrollwritten && sess->scrollback_replay_marklast)
-		sess->scrollback_replay_marklast (sess);
 	if (type == SESS_DIALOG)
 	{
 		struct User *user;

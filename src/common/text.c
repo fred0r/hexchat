@@ -349,6 +349,8 @@ scrollback_load (session *sess)
 		fe_print_text (sess, buf, 0, TRUE);
 		g_free (buf);
 		/*EMIT_SIGNAL (XP_TE_GENMSG, sess, "*", buf, NULL, NULL, NULL, 0);*/
+		if (sess->scrollback_replay_marklast)
+			sess->scrollback_replay_marklast (sess);
 	}
 }
 
