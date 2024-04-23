@@ -265,6 +265,7 @@ scrollback_load (session *sess)
 	gchar *buf, *text;
 	gint lines = 0;
 	time_t stamp = 0;
+	gboolean marker_loaded = FALSE;
 	time_t marker_stamp = marker_load(sess);
 
 	if (sess->text_scrollback == SET_DEFAULT)
@@ -347,6 +348,16 @@ scrollback_load (session *sess)
 				{
 					fe_print_text (sess, "  ", stamp, TRUE);
 				}
+
+				if (
+					!marker_loaded &&
+					marker_stamp &&
+					marker_stamp <= stamp &&
+					sess->scrollback_replay_marklast
+				) {
+					sess->scrollback_replay_marklast (sess);
+					marker_loaded = TRUE;
+				}
 			}
 			else
 			{
@@ -390,7 +401,7 @@ scrollback_load (session *sess)
 		fe_print_text (sess, buf, 0, TRUE);
 		g_free (buf);
 		/*EMIT_SIGNAL (XP_TE_GENMSG, sess, "*", buf, NULL, NULL, NULL, 0);*/
-		if (sess->scrollback_replay_marklast)
+		if (!marker_loaded && sess->scrollback_replay_marklast)
 			sess->scrollback_replay_marklast (sess);
 	}
 }
