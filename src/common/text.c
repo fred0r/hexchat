@@ -929,6 +929,12 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 }
 
 void
+UpdateMarkerTimeStamp (session *sess, time_t timestamp)
+{
+	marker_save(sess, timestamp);
+}
+
+void
 PrintTextTimeStamp (session *sess, char *text, time_t timestamp)
 {
 	if (!sess)
