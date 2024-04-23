@@ -125,6 +125,8 @@ struct _GtkXText
 {
 	GtkWidget widget;
 
+	struct session *sess; /* attached to this session */
+
 	xtext_buffer *buffer;
 	xtext_buffer *orig_buffer;
 	xtext_buffer *selection_buffer;

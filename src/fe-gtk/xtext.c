@@ -37,6 +37,7 @@
 #include "../common/util.h"
 #include "../common/hexchatc.h"
 #include "../common/url.h"
+#include "../common/text.h"
 
 #ifdef WIN32
 #include "marshal.h"
@@ -424,6 +425,7 @@ xtext_set_bg (GtkXText *xtext, GdkGC *gc, int index)
 static void
 gtk_xtext_init (GtkXText * xtext)
 {
+	xtext->sess = NULL;
 	xtext->pixmap = NULL;
 	xtext->io_tag = 0;
 	xtext->add_io_tag = 0;
