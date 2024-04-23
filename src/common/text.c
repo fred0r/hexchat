@@ -229,6 +229,34 @@ scrollback_save (session *sess, char *text, time_t stamp)
 		scrollback_shrink (sess);
 }
 
+time_t
+marker_load (session *sess)
+{
+	time_t stamp = 0;
+	char *buf = NULL;
+	gsize len = 0;
+	char *filename = NULL;
+
+	if ((filename = marker_get_filename (sess)) == NULL)
+		goto end;
+
+	GFile *file = g_file_new_for_path (filename);
+
+	if (!g_file_load_contents (file, NULL, &buf, &len, NULL, NULL))
+		goto end;
+
+	if (sizeof (time_t) == 4)
+		stamp = strtoul (buf, NULL, 10);
+	else
+		stamp = g_ascii_strtoull (buf, NULL, 10); /* in case time_t is 64 bits */
+
+end:
+	g_free (buf);
+	g_object_unref(file);
+	g_free (filename);
+	return stamp;
+}
+
 void
 scrollback_load (session *sess)
 {
@@ -237,6 +265,7 @@ scrollback_load (session *sess)
 	gchar *buf, *text;
 	gint lines = 0;
 	time_t stamp = 0;
+	time_t marker_stamp = marker_load(sess);
 
 	if (sess->text_scrollback == SET_DEFAULT)
 	{
