@@ -168,6 +168,46 @@ scrollback_shrink (session *sess)
 }
 
 static void
+marker_save (session *sess, time_t stamp)
+{
+	char *buf = NULL;
+	char *filename = NULL;
+	GFile *file = NULL;
+
+	if ((filename = marker_get_filename (sess)) == NULL) {
+		return;
+	}
+
+	file = g_file_new_for_path (filename);
+
+	if (!stamp) {
+		g_autoptr(GError) local_error = NULL;
+		if (!g_file_delete (file, NULL, &local_error) &&
+		    !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND)) {
+			g_warning ("Failed to delete marker file %s: %s",
+			           g_file_peek_path (file), local_error->message);
+		}
+		goto end;
+	}
+
+	if (sizeof (stamp) == 4) /* gcc will optimize one of these out */
+		buf = g_strdup_printf ("%d\n", (int) stamp);
+	else
+		buf = g_strdup_printf ("%" G_GINT64_FORMAT "\n", (gint64)stamp);
+
+	if (buf == NULL)
+		goto end;
+
+	if (!g_file_replace_contents (file, buf, strlen(buf), NULL, FALSE, G_FILE_CREATE_PRIVATE, NULL, NULL, NULL))
+		goto end;
+
+end:
+	g_free (buf);
+	g_object_unref(file);
+	g_free (filename);
+}
+
+static void
 scrollback_save (session *sess, char *text, time_t stamp)
 {
 	GOutputStream *ostream;
