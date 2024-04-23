@@ -102,6 +102,12 @@ data_get_filename (session *sess, const char* type)
 }
 
 static char *
+marker_get_filename (session *sess)
+{
+	return data_get_filename(sess, "marker");
+}
+
+static char *
 scrollback_get_filename (session *sess)
 {
 	return data_get_filename(sess, "scrollback");
