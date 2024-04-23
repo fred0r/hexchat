@@ -71,7 +71,7 @@ static void mkdir_p (char *filename);
 static char *log_create_filename (char *channame);
 
 static char *
-scrollback_get_filename (session *sess)
+data_get_filename (session *sess, const char* type)
 {
 	char *net, *chan, *buf, *ret = NULL;
 
@@ -80,13 +80,13 @@ scrollback_get_filename (session *sess)
 		return NULL;
 
 	net = log_create_filename (net);
-	buf = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "scrollback" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s.txt", get_xdir (), net, "");
+	buf = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s.txt", get_xdir (), type, net, "");
 	mkdir_p (buf);
 	g_free (buf);
 
 	chan = log_create_filename (sess->channel);
 	if (chan[0])
-		buf = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "scrollback" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s.txt", get_xdir (), net, chan);
+		buf = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s.txt", get_xdir (), type, net, chan);
 	else
 		buf = NULL;
 	g_free (chan);
@@ -99,6 +99,12 @@ scrollback_get_filename (session *sess)
 	}
 
 	return ret;
+}
+
+static char *
+scrollback_get_filename (session *sess)
+{
+	return data_get_filename(sess, "scrollback");
 }
 
 void
