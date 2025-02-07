@@ -71,7 +71,7 @@ static void mkdir_p (char *filename);
 static char *log_create_filename (char *channame);
 
 static char *
-scrollback_get_filename (session *sess)
+data_get_filename (session *sess, const char* type)
 {
 	char *net, *chan, *buf, *ret = NULL;
 
@@ -80,13 +80,13 @@ scrollback_get_filename (session *sess)
 		return NULL;
 
 	net = log_create_filename (net);
-	buf = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "scrollback" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s.txt", get_xdir (), net, "");
+	buf = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s.txt", get_xdir (), type, net, "");
 	mkdir_p (buf);
 	g_free (buf);
 
 	chan = log_create_filename (sess->channel);
 	if (chan[0])
-		buf = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "scrollback" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s.txt", get_xdir (), net, chan);
+		buf = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s" G_DIR_SEPARATOR_S "%s.txt", get_xdir (), type, net, chan);
 	else
 		buf = NULL;
 	g_free (chan);
@@ -99,6 +99,18 @@ scrollback_get_filename (session *sess)
 	}
 
 	return ret;
+}
+
+static char *
+marker_get_filename (session *sess)
+{
+	return data_get_filename(sess, "marker");
+}
+
+static char *
+scrollback_get_filename (session *sess)
+{
+	return data_get_filename(sess, "scrollback");
 }
 
 void
@@ -153,6 +165,46 @@ scrollback_shrink (session *sess)
 		sess->scrollwritten = lines;
 
 	g_free (buf);
+}
+
+static void
+marker_save (session *sess, time_t stamp)
+{
+	char *buf = NULL;
+	char *filename = NULL;
+	GFile *file = NULL;
+
+	if ((filename = marker_get_filename (sess)) == NULL) {
+		return;
+	}
+
+	file = g_file_new_for_path (filename);
+
+	if (!stamp) {
+		g_autoptr(GError) local_error = NULL;
+		if (!g_file_delete (file, NULL, &local_error) &&
+		    !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND)) {
+			g_warning ("Failed to delete marker file %s: %s",
+			           g_file_peek_path (file), local_error->message);
+		}
+		goto end;
+	}
+
+	if (sizeof (stamp) == 4) /* gcc will optimize one of these out */
+		buf = g_strdup_printf ("%d\n", (int) stamp);
+	else
+		buf = g_strdup_printf ("%" G_GINT64_FORMAT "\n", (gint64)stamp);
+
+	if (buf == NULL)
+		goto end;
+
+	if (!g_file_replace_contents (file, buf, strlen(buf), NULL, FALSE, G_FILE_CREATE_PRIVATE, NULL, NULL, NULL))
+		goto end;
+
+end:
+	g_free (buf);
+	g_object_unref(file);
+	g_free (filename);
 }
 
 static void
@@ -217,6 +269,34 @@ scrollback_save (session *sess, char *text, time_t stamp)
 		scrollback_shrink (sess);
 }
 
+time_t
+marker_load (session *sess)
+{
+	time_t stamp = 0;
+	char *buf = NULL;
+	gsize len = 0;
+	char *filename = NULL;
+
+	if ((filename = marker_get_filename (sess)) == NULL)
+		goto end;
+
+	GFile *file = g_file_new_for_path (filename);
+
+	if (!g_file_load_contents (file, NULL, &buf, &len, NULL, NULL))
+		goto end;
+
+	if (sizeof (time_t) == 4)
+		stamp = strtoul (buf, NULL, 10);
+	else
+		stamp = g_ascii_strtoull (buf, NULL, 10); /* in case time_t is 64 bits */
+
+end:
+	g_free (buf);
+	g_object_unref(file);
+	g_free (filename);
+	return stamp;
+}
+
 void
 scrollback_load (session *sess)
 {
@@ -225,6 +305,8 @@ scrollback_load (session *sess)
 	gchar *buf, *text;
 	gint lines = 0;
 	time_t stamp = 0;
+	gboolean marker_loaded = FALSE;
+	time_t marker_stamp = marker_load(sess);
 
 	if (sess->text_scrollback == SET_DEFAULT)
 	{
@@ -306,6 +388,16 @@ scrollback_load (session *sess)
 				{
 					fe_print_text (sess, "  ", stamp, TRUE);
 				}
+
+				if (
+					!marker_loaded &&
+					marker_stamp &&
+					marker_stamp <= stamp &&
+					sess->scrollback_replay_marklast
+				) {
+					sess->scrollback_replay_marklast (sess);
+					marker_loaded = TRUE;
+				}
 			}
 			else
 			{
@@ -349,6 +441,8 @@ scrollback_load (session *sess)
 		fe_print_text (sess, buf, 0, TRUE);
 		g_free (buf);
 		/*EMIT_SIGNAL (XP_TE_GENMSG, sess, "*", buf, NULL, NULL, NULL, 0);*/
+		if (!marker_loaded && sess->scrollback_replay_marklast)
+			sess->scrollback_replay_marklast (sess);
 	}
 }
 
@@ -832,6 +926,12 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 
 	return text_convert_invalid (text, len, utf8_fixup_converter, unicode_fallback_string, len_out);
 #endif
+}
+
+void
+UpdateMarkerTimeStamp (session *sess, time_t timestamp)
+{
+	marker_save(sess, timestamp);
 }
 
 void

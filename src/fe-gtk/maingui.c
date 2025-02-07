@@ -1862,6 +1862,7 @@ mg_link_irctab (session *sess, int focus)
 	mg_changui_new (sess, sess->res, 1, focus);
 	/* the buffer is now attached to a different widget */
 	((xtext_buffer *)sess->res->buffer)->xtext = (GtkXText *)sess->gui->xtext;
+	((xtext_buffer *)sess->res->buffer)->xtext->sess = sess;
 	if (win)
 		gtk_widget_destroy (win);
 }
@@ -2345,6 +2346,7 @@ mg_create_textarea (session *sess, GtkWidget *box)
 
 	gui->xtext = gtk_xtext_new (colors, TRUE);
 	xtext = GTK_XTEXT (gui->xtext);
+	xtext->sess = sess;
 	gtk_xtext_set_max_indent (xtext, prefs.hex_text_max_indent);
 	gtk_xtext_set_thin_separator (xtext, prefs.hex_text_thin_sep);
 	gtk_xtext_set_urlcheck_function (xtext, mg_word_check);
